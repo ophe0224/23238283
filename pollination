@@ -1,0 +1,26 @@
+import requests
+import random
+import urllib.parse
+
+def get_pollinations_image(image_prompt, seed=None):
+    """Generate an image using Pollinations AI API"""
+    try:
+        # Generate random seed if not provided
+        if seed is None:
+            seed = random.randint(0, 1000000)
+
+        # URL-encode the prompt
+        encoded_prompt = urllib.parse.quote(image_prompt)
+        
+        # Construct API URL with parameters
+        gen_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width=512&height=512"
+        
+        # Request image from API
+        response = requests.get(gen_url, timeout=60)
+        response.raise_for_status()  # Raise error for bad status codes
+        
+        return response.content, seed  # Return image bytes and seed
+    
+    except Exception as e:
+        print(f"Error generating image: {str(e)}")
+        return None, str(e)
