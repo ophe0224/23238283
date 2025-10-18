@@ -1,0 +1,193 @@
+import ipywidgets as widgets
+from IPython.display import display, HTML
+import json
+import os
+import hashlib
+import datetime
+
+# User management class
+class UserManager:
+    USER_DB_FILE = "user_database.json"
+
+    def __init__(self):
+        self.users = {}
+        self.current_user = None
+        self.load_users()
+        
+    def load_users(self):
+        """Load user database from file"""
+        if os.path.exists(self.USER_DB_FILE):
+            try:
+                with open(self.USER_DB_FILE, 'r') as f:
+                    self.users = json.load(f)
+            except:
+                self.users = {}
+    
+    def save_users(self):
+        """Save user database to file"""
+        with open(self.USER_DB_FILE, 'w') as f:
+            json.dump(self.users, f)
+    
+    def create_user(self, username, password, industry_code):
+        """Create a new user account with industry code"""
+        if username in self.users:
+            return False, "Username already exists"
+        
+        # Hash password
+        salt = os.urandom(16)
+        hashed_pw = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 100000)
+        
+        # Store user with industry code
+        self.users[username] = {
+            "password": hashed_pw.hex(),
+            "salt": salt.hex(),
+            "industry_code": industry_code,
+            "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        self.save_users()
+        return True, "Account created successfully"
+    
+    def authenticate(self, username, password):
+        """Authenticate a user"""
+        if username not in self.users:
+            return False, "User not found"
+        
+        user = self.users[username]
+        salt = bytes.fromhex(user['salt'])
+        hashed_pw = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 100000)
+        
+        if hashed_pw.hex() != user['password']:
+            return False, "Invalid password"
+        
+        self.current_user = username
+        return True, "Login successful"
+
+# Authentication UI
+form_style = {'description_width': '150px'}
+input_width = '90%'
+
+class AuthSystem:
+    def __init__(self):
+        self.create_widgets()
+        
+    def create_widgets(self):
+        # Sign Up Widgets
+        self.signup_username = widgets.Text(
+            description="Username:",
+            style=form_style,
+            layout=widgets.Layout(width=input_width)
+        )
+        self.signup_password = widgets.Password(
+            description="Password:",
+            style=form_style,
+            layout=widgets.Layout(width=input_width)
+        )
+        self.industry_code = widgets.Text(
+            description="Industry Code:",
+            style=form_style,
+            layout=widgets.Layout(width=input_width),
+            placeholder="Enter your industry code (e.g., TECH-123)"
+        )
+        self.signup_btn = widgets.Button(
+            description="Create Account",
+            button_style='primary',
+            layout=widgets.Layout(width='200px')
+        )
+        self.signup_status = widgets.Output()
+        
+        # Login Widgets
+        self.login_username = widgets.Text(
+            description="Username:",
+            style=form_style,
+            layout=widgets.Layout(width=input_width)
+        )
+        self.login_password = widgets.Password(
+            description="Password:",
+            style=form_style,
+            layout=widgets.Layout(width=input_width)
+        )
+        self.login_btn = widgets.Button(
+            description="Login",
+            button_style='primary',
+            layout=widgets.Layout(width='200px')
+        )
+        self.login_status = widgets.Output()
+        
+        # Attach handlers
+        self.signup_btn.on_click(self.on_signup)
+        self.login_btn.on_click(self.on_login)
+    
+    def on_signup(self, btn):
+        username = self.signup_username.value.strip()
+        password = self.signup_password.value.strip()
+        industry_code = self.industry_code.value.strip()
+        
+        if not username or not password:
+            with self.signup_status:
+                display(HTML("<div style='color:red;padding:10px'>Username and password are required!</div>"))
+            return
+            
+        if not industry_code:
+            with self.signup_status:
+                display(HTML("<div style='color:red;padding:10px'>Industry code is required!</div>"))
+            return
+            
+        success, message = user_manager.create_user(username, password, industry_code)
+        with self.signup_status:
+            self.signup_status.clear_output()
+            color = "green" if success else "red"
+            display(HTML(f"<div style='color:{color};padding:10px'>{message}</div>"))
+    
+    def on_login(self, btn):
+        username = self.login_username.value.strip()
+        password = self.login_password.value.strip()
+        
+        if not username or not password:
+            with self.login_status:
+                display(HTML("<div style='color:red;padding:10px'>Username and password required!</div>"))
+            return
+            
+        success, message = user_manager.authenticate(username, password)
+        with self.login_status:
+            self.login_status.clear_output()
+            color = "green" if success else "red"
+            display(HTML(f"<div style='color:{color};padding:10px'>{message}</div>"))
+    
+    def show_signup_form(self):
+        return widgets.VBox([
+            widgets.HTML("<h2 style='color:#2E86e1; margin-top:0'>📝 Sign Up</h2>"),
+            widgets.HTML("<p>Create a new account with your industry code</p>"),
+            self.signup_username,
+            self.signup_password,
+            self.industry_code,
+            widgets.HTML("<div style='font-size:12px; color:#666; margin-top:-10px'>"
+                         "Enter your industry-specific code for future features</div>"),
+            self.signup_btn,
+            self.signup_status
+        ])
+    
+    def show_login_form(self):
+        return widgets.VBox([
+            widgets.HTML("<h2 style='color:#2E86e1; margin-top:0'>🔒 Login</h2>"),
+            widgets.HTML("<p>Access your existing account</p>"),
+            self.login_username,
+            self.login_password,
+            self.login_btn,
+            self.login_status
+        ])
+
+# Create instances
+user_manager = UserManager()
+auth_system = AuthSystem()
+
+# Display authentication UI
+def display_auth_ui():
+    """Display authentication UI with signup and login tabs"""
+    # Create tabs for signup and login
+    auth_tabs = widgets.Tab()
+    auth_tabs.children = [auth_system.show_signup_form(), auth_system.show_login_form()]
+    auth_tabs.titles = ['Sign Up', 'Login']
+    display(auth_tabs)
+
+# Display the authentication UI
+display_auth_ui()
