@@ -1,0 +1,68 @@
+class TemplateMaster:
+    def __init__(self):
+        self.templates = {}
+
+    def create_template(self, name, width=512, height=512, background="white", quality=90):
+        """
+        Create a new template with default or custom parameters
+        :param name: Unique name for the template
+        :param width: Image width in pixels
+        :param height: Image height in pixels
+        :param background: Background color name or hex code
+        :param quality: Image quality (1-100)
+        """
+        if name in self.templates:
+            raise ValueError(f"Template '{name}' already exists")
+        
+        self.templates[name] = {
+            'width': width,
+            'height': height,
+            'background': background,
+            'quality': quality
+        }
+        return f"Template '{name}' created"
+
+    def delete_template(self, name):
+        """
+        Delete an existing template
+        :param name: Name of template to delete
+        """
+        if name not in self.templates:
+            raise KeyError(f"Template '{name}' not found")
+        
+        del self.templates[name]
+        return f"Template '{name}' deleted"
+
+    def get_template(self, name):
+        """
+        Retrieve template parameters
+        :param name: Name of template to retrieve
+        """
+        if name not in self.templates:
+            raise KeyError(f"Template '{name}' not found")
+        return self.templates[name]
+
+    def list_templates(self):
+        """Return list of available template names"""
+        return list(self.templates.keys())
+
+# Example usage
+if __name__ == "__main__":
+    master = TemplateMaster()
+    
+    # Create templates
+    print(master.create_template("default"))
+    print(master.create_template("high_quality", quality=100))
+    print(master.create_template("dark_bg", background="#222222"))
+    
+    # List templates
+    print("\nTemplates:", master.list_templates())
+    
+    # Get template details
+    print("\n'high_quality' settings:", master.get_template("high_quality"))
+    
+    # Delete template
+    print("\n" + master.delete_template("dark_bg"))
+    
+    # Final list
+    print("\nRemaining templates:", master.list_templates())
