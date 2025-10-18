@@ -1,0 +1,79 @@
+import requests
+import random
+import urllib.parse
+import time
+
+def generate_two_images(subject, style="professional photography"):
+    """
+    Generates two image variations based on a subject name
+    
+    Args:
+        subject: The main subject (e.g., "Spicy Tuna Roll", "Mystery Novel", "Smart Watch")
+        style: Optional style description (e.g., "Japanese cuisine", "book cover", "product shot")
+    
+    Returns:
+        list: Two image bytes objects (or None if generation failed)
+    """
+    # Create base prompt
+    base_prompt = f"A photorealistic 1024x1024 image of {subject}, {style}, high quality, 8k"
+    
+    images = []
+    
+    # Generate two variations
+    for i in range(2):
+        # Add variation to prompt
+        variation_prompt = f"{base_prompt}, variation {i+1}, unique composition"
+        
+        # Generate image
+        img_bytes, _ = get_pollinations_image(variation_prompt)
+        images.append(img_bytes)
+        
+        # Short delay between requests
+        time.sleep(1)
+    
+    return images
+
+def get_pollinations_image(prompt, width=1024, height=1024):
+    """
+    Generate image using Pollinations AI API
+    
+    Args:
+        prompt: Text description of the image
+        width: Image width in pixels
+        height: Image height in pixels
+    
+    Returns:
+        tuple: (image_bytes, seed) or (None, error) on failure
+    """
+    try:
+        # Generate random seed
+        seed = random.randint(0, 1000000)
+        
+        # Encode prompt
+        encoded_prompt = urllib.parse.quote(prompt)
+        
+        # Build API URL
+        api_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width={width}&height={height}"
+        
+        # Get image
+        response = requests.get(api_url, timeout=60)
+        response.raise_for_status()
+        
+        return response.content, seed
+        
+    except Exception as e:
+        print(f"Image generation failed: {str(e)}")
+        return None, str(e)
+
+        # Save images to files
+for i, img_bytes in enumerate(food_images):
+    if img_bytes:
+        with open(f"image_{i+1}.png", "wb") as f:
+            f.write(img_bytes)
+
+# Display images in Jupyter
+from IPython.display import display, Image
+
+for img_bytes in food_images:
+    if img_bytes:
+        display(Image(img_bytes))
