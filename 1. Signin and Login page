@@ -5,15 +5,19 @@ import os
 import hashlib
 import datetime
 
-# User management class
+# User management class with role support
 class UserManager:
     USER_DB_FILE = "user_database.json"
+    MASTER_USERNAME = "master123"
+    DEFAULT_MASTER_PASSWORD = "master@123"  # Default password for master user
 
     def __init__(self):
         self.users = {}
         self.current_user = None
+        self.current_role = None
         self.load_users()
-        
+        self.create_master_user()  # Ensure master user exists
+
     def load_users(self):
         """Load user database from file"""
         if os.path.exists(self.USER_DB_FILE):
@@ -22,33 +26,56 @@ class UserManager:
                     self.users = json.load(f)
             except:
                 self.users = {}
-    
+
     def save_users(self):
         """Save user database to file"""
         with open(self.USER_DB_FILE, 'w') as f:
             json.dump(self.users, f)
-    
+
+    def create_master_user(self):
+        """Create master user if not exists"""
+        if self.MASTER_USERNAME not in self.users:
+            salt = os.urandom(16)
+            hashed_pw = hashlib.pbkdf2_hmac(
+                'sha256', 
+                self.DEFAULT_MASTER_PASSWORD.encode(), 
+                salt, 
+                100000
+            )
+            self.users[self.MASTER_USERNAME] = {
+                "password": hashed_pw.hex(),
+                "salt": salt.hex(),
+                "industry_code": "ADMIN-001",
+                "role": "master",
+                "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+            self.save_users()
+
     def create_user(self, username, password, industry_code):
-        """Create a new user account with industry code"""
+        """Create a new user account with role assignment"""
         if username in self.users:
             return False, "Username already exists"
+        
+        # Determine role (master only for predefined username)
+        role = "master" if username == self.MASTER_USERNAME else "client"
         
         # Hash password
         salt = os.urandom(16)
         hashed_pw = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 100000)
         
-        # Store user with industry code
+        # Store user with role
         self.users[username] = {
             "password": hashed_pw.hex(),
             "salt": salt.hex(),
             "industry_code": industry_code,
+            "role": role,
             "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
         self.save_users()
-        return True, "Account created successfully"
-    
+        return True, f"Account created successfully. Role: {role}"
+
     def authenticate(self, username, password):
-        """Authenticate a user"""
+        """Authenticate a user and set role"""
         if username not in self.users:
             return False, "User not found"
         
@@ -60,7 +87,8 @@ class UserManager:
             return False, "Invalid password"
         
         self.current_user = username
-        return True, "Login successful"
+        self.current_role = user['role']  # Set authenticated user's role
+        return True, f"Login successful. Role: {user['role']}"
 
 # Authentication UI
 form_style = {'description_width': '150px'}
@@ -69,7 +97,7 @@ input_width = '90%'
 class AuthSystem:
     def __init__(self):
         self.create_widgets()
-        
+    
     def create_widgets(self):
         # Sign Up Widgets
         self.signup_username = widgets.Text(
@@ -126,12 +154,12 @@ class AuthSystem:
             with self.signup_status:
                 display(HTML("<div style='color:red;padding:10px'>Username and password are required!</div>"))
             return
-            
+        
         if not industry_code:
             with self.signup_status:
                 display(HTML("<div style='color:red;padding:10px'>Industry code is required!</div>"))
             return
-            
+        
         success, message = user_manager.create_user(username, password, industry_code)
         with self.signup_status:
             self.signup_status.clear_output()
@@ -146,7 +174,7 @@ class AuthSystem:
             with self.login_status:
                 display(HTML("<div style='color:red;padding:10px'>Username and password required!</div>"))
             return
-            
+        
         success, message = user_manager.authenticate(username, password)
         with self.login_status:
             self.login_status.clear_output()
